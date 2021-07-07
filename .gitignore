@@ -5,3 +5,4 @@ db/
 log/
 logs_test/
 __pycache__/
+telegram.json

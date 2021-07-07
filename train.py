@@ -495,171 +495,60 @@ class Modal(object):
         return eval_results
 
     def demo(self, data='dev'):
+        from telegram import Update
+        from telegram.ext import (
+            Updater, CommandHandler, MessageHandler, Filters, CallbackContext)
         # predict one dialog/ one turn at a time
-        from pprint import pprint
         self.model.eval()
-
-        all_batches = self.reader.get_batches('dev')
-        data_iterator = self.reader.get_data_iterator(all_batches)
-        eval_data = self.reader.get_eval_data('dev')
-
-        # for token in eval_data[0][0]['user']:
-        #     print(self.tokenizer.decode(token), end=' ')
-        # print('\n\n')
-        # for token in eval_data[0][0]['resp']:
-        #     print(self.tokenizer.decode(token), end=' ')
-        # print('\n\n')
-        #out = self.model.generate(torch.cuda.LongTensor(eval_data[0][0]['user']))
-        #print(out)
-        #exit()
-
-        
-        set_stats = self.reader.set_stats[data]
-        logging.info("***** Running Evaluation *****")
-        logging.info("  Num Turns = %d", set_stats['num_turns'])
-        # logging.info("  Num Dialogs = %d", set_stats['num_dials'])
-
-        # valid_losses = []
-        btm = time.time()
-        result_collection = {}
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                     level=logging.INFO)
+        with open('telegram.json') as fin:
+            api = json.load(fin)
+        logging.info("***** Running Demo *****")
         with torch.no_grad():
-            for dial_idx, dialog in enumerate(eval_data):
+            updater = Updater(token=api['token'])
+            dispatcher = updater.dispatcher
 
-                pv_turn = {}
-                for turn_idx, turn in enumerate(dialog):
-                    first_turn = (turn_idx == 0)
-                    inputs = self.reader.convert_turn_eval(
-                        turn, pv_turn, first_turn)
-                    inputs = self.add_torch_input_eval(inputs)
+            def start(update, context):
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="Hi. I am a Ze Carioca, how can I help you?")
 
-                    print("Please type something. Sugestion:", self.tokenizer.decode(eval_data[0][0]['user'])\
-                        .lstrip('<sos_u> ').rstrip('<eos_u>').capitalize())
-                    user_input = self.tokenizer.encode('<sos_u>'+input('>').lower()+'<eos_u>', add_special_tokens=True)
+            def reply(update: Update, context: CallbackContext) -> str:
+                msg = '<sos_u>'+update.message.text.lower()+'<eos_u>'
+                msg = self.tokenizer.encode(msg, add_special_tokens=True)
+                if 'msg' not in context.user_data:
+                    context.user_data['msg'] = []
+                context.user_data['msg'] += msg
 
-                    print("\nTokenized version:")
-                    print(self.tokenizer.decode(user_input))
-                    print('\n\n')
+                logging.info("[USER] "+self.tokenizer.decode(context.user_data['msg']))
+                context_length = len(context.user_data['msg'])
+                max_len=60
 
-                    inputs['context_tensor'] = torch.cuda.LongTensor(user_input).reshape(1,-1)
-                    inputs['context'] = user_input
-                    # fail to generate new tokens, if max_length not set
-                    context_length = len(inputs['context'])
-                    if cfg.use_true_curr_bspn: # generate act, response
-                        max_len=60
-                        if not cfg.use_true_curr_aspn:
-                            max_len = 80
+                outputs = self.model.generate(input_ids=torch.cuda.LongTensor(
+                    context.user_data['msg']).reshape(1,-1),
+                    max_length=context_length+max_len, temperature=0.7,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
 
-                        outputs = self.model.generate(input_ids=inputs['context_tensor'],
-                                                    max_length=context_length+max_len, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
-                                                    #   no_repeat_ngram_size=4
-                        # turn['generated'] = self.tokenizer.decode(outputs[0])
+                generated = outputs[0].cpu().numpy().tolist()
+                generated = generated[context_length:]
 
-                        #print(inputs)
+                context.user_data['msg'] += generated
+                decoded_output = self.tokenizer.decode(generated)
+                logging.info("[SYSTEM] "+decoded_output)
+                decoded_output = decoded_output.split('<sos_r>')[-1]\
+                    .rstrip('<eos_r>')
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text=decoded_output)
 
-                        # resp_gen, need to trim previous context
-                        generated = outputs[0].cpu().numpy().tolist()
-                        generated = generated[context_length:]
+            start_handler = CommandHandler('start', start)
+            dispatcher.add_handler(start_handler)
+            reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
+            dispatcher.add_handler(reply_handler)
 
+            updater.start_polling()
+            updater.idle()
 
-                        
-                        for token in generated:
-                            print(self.tokenizer.decode(token), end=' ')
-                        print('\n\n')
-                        exit()
-
-                        try:
-                            decoded = self.decode_generated_act_resp(generated)
-                        except ValueError as exception:
-                            logging.info(str(exception))
-                            logging.info(self.tokenizer.decode(generated))
-                            decoded = {'resp': [], 'bspn': [], 'aspn': []}
-
-                    else: # predict bspn, access db, then generate act and resp
-                        outputs = self.model.generate(input_ids=inputs['context_tensor'],
-                                                    max_length=context_length+60, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_b>'])[0])
-                        generated_bs = outputs[0].cpu().numpy().tolist()
-                        # generated_bs = generated_bs[context_length-1:]
-                        bspn_gen = self.decode_generated_bspn(generated_bs[context_length-1:])
-                        # check DB result
-                        if cfg.use_true_db_pointer:
-                            # db_result = self.reader.bspan_to_DBpointer(self.tokenizer.decode(turn['bspn']), turn['turn_domain'])
-                            db = turn['db']
-                        else:
-                            db_result = self.reader.bspan_to_DBpointer(self.tokenizer.decode(bspn_gen), turn['turn_domain'])
-                            db = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize('<sos_db> '+ db_result + ' <eos_db>')) + self.tokenizer.encode(['<sos_a>'])
-                        inputs['context_tensor_db'] = torch.tensor([inputs['context'][:-1] + bspn_gen + db]).to(self.device)
-                        context_length = len(inputs['context_tensor_db'][0])
-                        outputs_db = self.model.generate(input_ids=inputs['context_tensor_db'],
-                                                    max_length=context_length+80, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
-                        generated_ar = outputs_db[0].cpu().numpy().tolist()
-                        generated_ar = generated_ar[context_length-1:]
-                        try:
-                            decoded = self.decode_generated_act_resp(generated_ar)
-                            decoded['bspn'] = bspn_gen
-                        except ValueError as exception:
-                            logging.info(str(exception))
-                            logging.info(self.tokenizer.decode(generated_ar))
-                            decoded = {'resp': [], 'bspn': [], 'aspn': []}
-
-                    turn['resp_gen'] = decoded['resp']
-                    turn['bspn_gen'] = turn['bspn'] if cfg.use_true_curr_bspn else decoded['bspn']
-                    turn['aspn_gen'] = turn['aspn'] if cfg.use_true_curr_aspn else decoded['aspn']
-                    turn['dspn_gen'] = turn['dspn']
-
-                    # check DB results
-                    # db_result = self.reader.bspan_to_DBpointer(self.tokenizer.decode(turn['bspn']), turn['turn_domain'])
-                    # if db_result[0] == 1: # no match
-                    #     print('gt:', self.tokenizer.decode(turn['aspn']), '     |gen:', self.tokenizer.decode(decoded['aspn']))
-                    #     print('gen_resp: ', self.tokenizer.decode(decoded['resp']))
-                    #     print('gt_resp: ', self.tokenizer.decode(turn['resp']), '\n')
-
-                    pv_turn['labels'] = inputs['labels'] # all true previous context
-                    pv_turn['resp'] = turn['resp'] if cfg.use_true_prev_resp else decoded['resp']
-                    pv_turn['bspn'] = turn['bspn'] if cfg.use_true_prev_bspn else decoded['bspn']
-                    pv_turn['db'] = turn['db'] if cfg.use_true_curr_bspn else db
-                    pv_turn['aspn'] = turn['aspn'] if cfg.use_true_prev_aspn else decoded['aspn']
-
-                result_collection.update(
-                    self.reader.inverse_transpose_turn(dialog))
-
-        logging.info("inference time: {:.2f} min".format((time.time()-btm)/60))
-        # score
-        btm = time.time()
-        results, _ = self.reader.wrap_result_lm(result_collection)
-        bleu, success, match = self.evaluator.validation_metric(results)
-        logging.info("Scoring time: {:.2f} min".format((time.time()-btm)/60))
-        score = 0.5 * (success + match) + bleu
-        valid_loss = 130 - score
-        logging.info('validation [CTR] match: %2.2f  success: %2.2f  bleu: %2.2f    score: %.2f' % (
-            match, success, bleu, score))
-        eval_results = {}
-        eval_results['bleu'] = bleu
-        eval_results['success'] = success
-        eval_results['match'] = match
-        eval_results['score'] = score
-        eval_results['result'] = 'validation [CTR] match: %2.2f  success: %2.2f  bleu: %2.2f    score: %.2f' % (match, success, bleu, score)
-
-
-        model_setting, epoch_setting = cfg.eval_load_path.split('/')[1], cfg.eval_load_path.split('/')[2]
-        eval_on = '-'.join(cfg.exp_domains)
-        if data == 'test':
-            eval_on += '_test'
-        if not os.path.exists(cfg.log_path):
-            os.mkdir(cfg.log_path)
-        log_file_name = os.path.join(cfg.log_path, model_setting+'-'+eval_on+'.json')
-        if os.path.exists(log_file_name):
-            eval_to_json = json.load(open(log_file_name, 'r'))
-            eval_to_json[epoch_setting] = eval_results
-            json.dump(eval_to_json, open(log_file_name, 'w'), indent=2)
-        else:
-            eval_to_json = {}
-            eval_to_json[epoch_setting] = eval_results
-            json.dump(eval_to_json, open(log_file_name, 'w'), indent=2)
-        logging.info('update eval results to {}'.format(log_file_name))
-        return eval_results
 
     def validate(self, data='dev', do_test=False):
         # predict one dialog/ one turn at a time
