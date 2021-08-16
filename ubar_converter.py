@@ -50,8 +50,8 @@ for i in range(1, 18):
                                 constraint_delex.append(key)
                             constraint.append(" ".join(v).lower())
 
-                log_entry["constraint"] = " ".join(constraint)
-                log_entry["cons_delex"] = " ".join(constraint_delex)
+                log_entry["constraint"] = " ".join(trans[x] for x in constraint)
+                log_entry["cons_delex"] = " ".join(trans[x] for x in constraint_delex)
                 # TODO fix turn_domain
                 if "[general]" in acts_list:
                     log_entry["turn_domain"] = "[general]"
