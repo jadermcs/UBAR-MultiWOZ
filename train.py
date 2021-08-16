@@ -241,7 +241,7 @@ class Modal(object):
                 (time.time()-btm)/60, tr_loss))
             # save model after every epoch
             # if epoch > 30 and tr_loss/epoch_step < 0.6:
-            self.save_model(epoch, tr_loss/epoch_step)
+            self.save_model(epoch, tr_loss/(epoch_step+1))
 
 
 
@@ -361,7 +361,7 @@ class Modal(object):
                 (time.time()-btm)/60, tr_loss))
             # save model after every epoch
             # if epoch > 10 or tr_loss/epoch_step < 1:
-            self.save_model(epoch, tr_loss/epoch_step)
+            self.save_model(epoch, tr_loss/(epoch_step+1))
 
     def save_model(self, epoch, loss):
         save_path = os.path.join(
@@ -793,7 +793,7 @@ def main():
         if len(cfg.cuda_device) == 1:
             cfg.multi_gpu = False
             # torch.cuda.set_device(cfg.cuda_device[0])
-            device = torch.device("cuda:0".format(cfg.cuda_device[0]))
+            device = torch.device("cuda:{}".format(cfg.cuda_device[0]))
         else:
             pass  # multi-gpu
     else:

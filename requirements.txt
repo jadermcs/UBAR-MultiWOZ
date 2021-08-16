@@ -1,4 +1,7 @@
 torch==1.5
-spacy
+spacy==3.0.5
 transformers==2.11
 python-telegram-bot==13.7
+nltk==3.6.2
+tensorboard==2.6.0
+click==7.1.1

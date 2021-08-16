@@ -32,7 +32,7 @@ class _Config:
         # experiment settings
         self.mode = 'unknown'
         self.cuda = True
-        self.cuda_device = [3]
+        self.cuda_device = [0]
         self.exp_no = ''
         self.seed = 11
         self.save_log = True # tensorboard 
