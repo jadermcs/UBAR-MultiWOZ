@@ -21,9 +21,18 @@ for i in range(1, 18):
             for turn in range(len(entry["turns"])//2):
                 log_entry = {}
                 log_entry["user"] = entry["turns"][turn*2]["utterance"]
-                # TODO delex
-                log_entry["user_delex"] = entry["turns"][turn*2]["utterance"]
-                log_entry["resp"] = entry["turns"][turn*2+1]["utterance"]
+                user_raw = entry["turns"][turn*2]["utterance"]
+                for frame in entry["turns"][turn*2]["frames"]:
+                    for (slot, value) in frame["state"]["slot_values"].items():
+                        string = slot.split("-")[-1]
+                        user_raw = user_raw.replace(value[0], f"[value_{string}]")
+                log_entry["user_delex"] = user_raw
+                resp_raw = entry["turns"][turn*2+1]["utterance"]
+                for frame in entry["turns"][turn*2+1]["frames"]:
+                    for slot in frame["slots"]:
+                        string = slot["slot"].split("-")[-1]
+                        resp_raw = resp_raw.replace(slot["value"], f"[value_{string}]")
+                log_entry["resp"] = resp_raw
                 log_entry["turn_num"] = turn
                 dialog_acts = acts[did.upper()+".json"][str(turn*2+1)]["dialog_act"]
                 acts_list = []
@@ -50,6 +59,7 @@ for i in range(1, 18):
                                 constraint_delex.append(key)
                             constraint.append(" ".join(v).lower())
 
+                # TODO fix double entry constraints
                 log_entry["constraint"] = " ".join(trans[x] if x in trans else x for x in constraint)
                 log_entry["cons_delex"] = " ".join(trans[x] if x in trans else x for x in constraint_delex)
                 # TODO fix turn_domain
