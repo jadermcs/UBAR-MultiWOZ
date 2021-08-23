@@ -1,6 +1,17 @@
 # UBAR
 This is the code and data for the AAAI 2021 paper "UBAR: Towards Fully End-to-End Task-Oriented Dialog System with GPT-2". [arxiv](https://arxiv.org/pdf/2012.03539.pdf)
 
+## PTBR
+to train the model in ptbr we use:
+```
+nohup python train.py -mode train -cfg gpt_path=pierreguillou/gpt2-small-portuguese lr=1e-4 warmup_steps=2000 gradient_accumulation_steps=16 batch_size=2 epoch_num=60 exp_no=best_model &
+```
+
+To evaluate
+```
+python train.py -mode demo -cfg eval_load_path='experiments/all_best_model_sd11_lr0.0001_bs2_ga16/epoch57_trloss0.40_gpt2' use_true_prev_bspn=True use_true_prev_aspn=True use_true_db_pointer=True use_true_prev_resp=False use_true_curr_bspn=True use_true_curr_aspn=True use_all_previous_context=True cuda_device=0
+```
+
 
 ## Abstract
 This paper presents our task-oriented dialog system UBAR
