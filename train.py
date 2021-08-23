@@ -513,6 +513,11 @@ class Modal(object):
                 context.bot.send_message(chat_id=update.effective_chat.id,
                                          text="Hi. I am a Ze Carioca, how can I help you?")
 
+            def restart(update, context):
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="Hi. I am a Ze Carioca, how can I help you?")
+                context.user_data['msg'] = []
+
             def reply(update: Update, context: CallbackContext) -> str:
                 msg = '<sos_u>'+update.message.text.lower()+'<eos_u>'
                 msg = self.tokenizer.encode(msg, add_special_tokens=True)
@@ -524,8 +529,8 @@ class Modal(object):
                 context_length = len(context.user_data['msg'])
                 max_len=60
 
-                outputs = self.model.generate(input_ids=torch.cuda.LongTensor(
-                    context.user_data['msg']).reshape(1,-1),
+                outputs = self.model.generate(input_ids=torch.LongTensor(
+                    context.user_data['msg']).reshape(1,-1).to(self.device),
                     max_length=context_length+max_len, temperature=0.7,
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
@@ -543,6 +548,8 @@ class Modal(object):
 
             start_handler = CommandHandler('start', start)
             dispatcher.add_handler(start_handler)
+            restart_handler = CommandHandler('restart', restart)
+            dispatcher.add_handler(restart_handler)
             reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
             dispatcher.add_handler(reply_handler)
 
