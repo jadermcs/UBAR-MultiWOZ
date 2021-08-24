@@ -1,4 +1,5 @@
 import json
+import glob
 
 path = "data/MultiWOZ_2.2"
 
@@ -6,8 +7,8 @@ acts = json.load(open(f"{path}/dialog_acts.json"))
 trans = json.load(open("corrections.json"))
 
 parse_data = {}
-for i in range(1, 18):
-    with open(f"{path}/train/dialogues_{i:03}.json", encoding="utf-8") as fin:
+for f in glob.glob(f"{path}/*/dialogues_*"):
+    with open(f, encoding="utf-8") as fin:
         data = json.load(fin)
         for entry in data:
             parse = {}
@@ -15,8 +16,8 @@ for i in range(1, 18):
             parse_data[did] = {}
             goal = entry["services"]
             for g in goal:
-                parse[g] = {"info":{}, "fail_info":{}, "book":{}, "fail_book":{}}
-
+                parse[g] = {"info":{}, "fail_info":{},
+                            "book":{}, "fail_book":{}}
             log = []
             for turn in range(len(entry["turns"])//2):
                 log_entry = {}
@@ -39,7 +40,6 @@ for i in range(1, 18):
                 for (k, v) in dialog_acts.items():
                     acts_list += ["["+x+"]" for x in k.lower().split('-')]
                     acts_list += list(set([x[0].replace("book","",1) for x in v if x[0] != "none"]))
-                log_entry["sys_act"] = " ".join([trans[x] for x in acts_list])
 
                 constraint = []
                 constraint_delex = []
@@ -58,11 +58,13 @@ for i in range(1, 18):
                                 constraint.append(key)
                                 constraint_delex.append(key)
                             constraint.append(" ".join(v).lower())
+                if acts_list and acts_list[0] == "[booking]":
+                    acts_list[0] = constraint[0]
+                log_entry["sys_act"] = " ".join([trans[x] for x in acts_list])
 
-                # TODO fix double entry constraints
                 log_entry["constraint"] = " ".join(trans[x] if x in trans else x for x in constraint)
                 log_entry["cons_delex"] = " ".join(trans[x] if x in trans else x for x in constraint_delex)
-                # TODO fix turn_domain
+                # TODO fix turn_domain and pointer
                 if "[general]" in acts_list:
                     log_entry["turn_domain"] = "[general]"
                 elif acts_list and acts_list[0] != "[booking]":

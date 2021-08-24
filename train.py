@@ -19,12 +19,12 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from config import global_config as cfg
-# from config21 import global_config as cfg  # global, already initialized
-
 from flask import Flask, make_response, request
 from flask_ngrok import run_with_ngrok
 import threading
+
+from config import global_config as cfg
+# from config21 import global_config as cfg  # global, already initialized
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -520,7 +520,7 @@ class Modal(object):
         if (log): logging.info("[SYSTEM] "+decoded_output)
         return decoded_output, context
 
-    def web_interface(self, plataform=''):
+    def web_interface(self, ngrok=False):
         model = self
         app = Flask(__name__)
 
@@ -551,20 +551,21 @@ class Modal(object):
             return response
 
         try:
-            if (plataform == "colaboratory"):
+            if (ngrok):
                 run_with_ngrok(app)
                 app.run()
             else: app.run(host="0.0.0.0")
         except KeyboardInterrupt: app.shutdown()
 
-    def demo(self, data='dev', plataform=''):
+    def demo(self, data='dev', ngrok=False):
         from telegram import Update
         from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, CallbackContext)
         # predict one dialog/ one turn at a time
 
-        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-        webinterface = threading.Thread(target=self.web_interface, args=(plataform,))
-        webinterface.setDaemon(True)
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                     level=logging.INFO)
+
+        webinterface = threading.Thread(target=self.web_interface, args=(ngrok,))
         webinterface.start()
 
         try:
@@ -578,6 +579,11 @@ class Modal(object):
                 def start(update, context):
                     context.bot.send_message(chat_id=update.effective_chat.id,
                                              text="Hi. I am a Ze Carioca, how can I help you?")
+
+                def restart(update, context):
+                    context.bot.send_message(chat_id=update.effective_chat.id,
+                                             text="Hi. I am a Ze Carioca, how can I help you?")
+                    context.user_data['msg'] = []
 
                 def reply(update: Update, context: CallbackContext) -> str:
                     msg = update.message.text.lower()
@@ -600,10 +606,8 @@ class Modal(object):
 
         try:
             while (webinterface.is_alive()): time.sleep(0.1)
-            webinterface.join()
             webinterface = None
         except KeyboardInterrupt:
-            webinterface.join()
             webinterface = None
 
     def validate(self, data='dev', do_test=False):
@@ -803,7 +807,6 @@ def parse_arg_cfg(args):
             setattr(cfg, k, v)
     return
 
-
 def main():
     if not os.path.exists('./experiments'):
         os.mkdir('./experiments')
@@ -814,7 +817,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-mode')
     parser.add_argument('-cfg', nargs='*')
-    parser.add_argument('-plataform')
+    parser.add_argument('-ngrok')
     args = parser.parse_args()
 
     cfg.mode = args.mode
@@ -884,7 +887,7 @@ def main():
                             cfg.use_true_curr_bspn, cfg.use_true_curr_aspn, cfg.use_all_previous_context
                         ))
         if cfg.context_scheme == 'UBARU':
-            m.demo(plataform=args.plataform)
+            m.demo(ngrok=args.ngrok)
         else:
             raise NotImplemented("Not running for URURU.")
     else:  # test
