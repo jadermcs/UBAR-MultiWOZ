@@ -533,7 +533,7 @@ class Modal(object):
                 data = request.form
                 if ('request' in data):
                     if (int(data['request']) == 0):
-                        index = random.choices(range(len(names[0])), weights=names[2])
+                        index = random.choices(range(len(names[0])), weights=names[2])[0]
                         content = [json.dumps({'success': 'true', 'name': names[0][index],
                                                'gender': names[1][index]}), 200]
                     else:
