@@ -522,26 +522,35 @@ class Modal(object):
 
     def web_interface(self, ngrok=False):
         model = self
-        app = Flask(__name__)
+        file = open("names_pt-br.json", "r", encoding='utf-8')
+        names = json.load(file)
 
+        app = Flask(__name__)
         @app.route("/", methods=["POST"])
         def chatbot():
             content = None
             try:
                 data = request.form
-                if ('sentence' in data):
-                    context = None
-                    sentence = data['sentence']
-                    if ('context' in data):
-                        if (data['context'] == ""): context = []
-                        else: context = json.loads(data['context'])
+                if ('request' in data):
+                    if (int(data['request']) == 0):
+                        index = random.choices(range(len(names[0])), weights=names[2])
+                        content = [json.dumps({'success': 'true', 'name': names[0][index],
+                                               'gender': names[1][index]}), 200]
+                    else:
+                        if ('sentence' in data):
+                            context = None
+                            sentence = data['sentence']
+                            if ('context' in data):
+                                if (data['context'] == ""): context = []
+                                else: context = json.loads(data['context'])
 
-                    response, context = model.generate_response(context, sentence)
-                    dictresp = {'success': 'true',
-                                'response': response,
-                                'context': json.dumps(context)}
-                    content = [json.dumps(dictresp), 200]
-                    time.sleep((float(1.0)/float(random.uniform(100,200)))*float(len(response)))
+                            response, context = model.generate_response(context, sentence)
+                            dictresp = {'success': 'true',
+                                        'response': response,
+                                        'context': json.dumps(context)}
+                            content = [json.dumps(dictresp), 200]
+                            time.sleep((float(1.0)/float(random.uniform(100,200)))*float(len(response)))
+                        else: content = [json.dumps({'success': 'false'}), 500]
                 else: content = [json.dumps({'success': 'false'}), 500]
             except: content = [json.dumps({'success': 'false'}), 500]
 
