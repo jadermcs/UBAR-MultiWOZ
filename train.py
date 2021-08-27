@@ -607,12 +607,12 @@ class Modal(object):
                     context.user_data['msg'] = context
                     context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-	            start_handler = CommandHandler('start', start)
-	            dispatcher.add_handler(start_handler)
-	            restart_handler = CommandHandler('restart', restart)
-	            dispatcher.add_handler(restart_handler)
-	            reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
-	            dispatcher.add_handler(reply_handler)
+                start_handler = CommandHandler('start', start)
+                dispatcher.add_handler(start_handler)
+                restart_handler = CommandHandler('restart', restart)
+                dispatcher.add_handler(restart_handler)
+                reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
+                dispatcher.add_handler(reply_handler)
 
                 try:
                     updater.start_polling()
