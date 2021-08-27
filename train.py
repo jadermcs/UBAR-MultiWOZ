@@ -504,8 +504,8 @@ class Modal(object):
         context_length = len(context)
         max_len = 60
 
-        outputs = self.model.generate(input_ids=torch.cuda.LongTensor(
-            context).reshape(1,-1),
+        outputs = self.model.generate(input_ids=torch.LongTensor(
+            context).reshape(1,-1).to(self.device),
             max_length=context_length+max_len, temperature=0.7,
             pad_token_id=self.tokenizer.eos_token_id,
             eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
@@ -604,6 +604,8 @@ class Modal(object):
 
                 start_handler = CommandHandler('start', start)
                 dispatcher.add_handler(start_handler)
+                restart_handler = CommandHandler('restart', restart)
+                dispatcher.add_handler(restart_handler)
                 reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
                 dispatcher.add_handler(reply_handler)
 
