@@ -19,6 +19,10 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+from flask import Flask, make_response, request
+from flask_ngrok import run_with_ngrok
+import threading
+
 from config import global_config as cfg
 # from config21 import global_config as cfg  # global, already initialized
 
@@ -494,67 +498,133 @@ class Modal(object):
 
         return eval_results
 
-    def demo(self, data='dev'):
-        from telegram import Update
-        from telegram.ext import (
-            Updater, CommandHandler, MessageHandler, Filters, CallbackContext)
-        # predict one dialog/ one turn at a time
+    def generate_response(self, old_context, original_msg, log=False):
         self.model.eval()
+        msg = '<sos_u>'+original_msg+'<eos_u>'
+        msg = self.tokenizer.encode(msg, add_special_tokens=True)
+
+        context = old_context + msg
+        if (log): logging.info("[USER] "+self.tokenizer.decode(context))
+
+        context_length = len(context)
+        max_len = 60
+
+        outputs = self.model.generate(input_ids=torch.LongTensor(
+            context).reshape(1,-1).to(self.device),
+            max_length=context_length+max_len, temperature=0.7,
+            pad_token_id=self.tokenizer.eos_token_id,
+            eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
+
+        generated = outputs[0].cpu().numpy().tolist()
+        generated = generated[context_length:]
+
+        context += generated
+        decoded_output = self.tokenizer.decode(generated)
+        decoded_output = decoded_output.split('<sos_r>')[-1]\
+                                       .rstrip('<eos_r>')
+        if (log): logging.info("[SYSTEM] "+decoded_output)
+        return decoded_output, context
+
+    def web_interface(self, ngrok=False):
+        model = self
+        file = open("names_pt-br.json", "r", encoding='utf-8')
+        names = json.load(file)
+
+        app = Flask(__name__)
+        @app.route("/", methods=["POST"])
+        def chatbot():
+            content = None
+            try:
+                data = request.form
+                if ('request' in data):
+                    if (int(data['request']) == 0):
+                        index = random.choices(range(len(names[0])), weights=names[2])[0]
+                        content = [json.dumps({'success': 'true', 'name': names[0][index],
+                                               'gender': names[1][index]}), 200]
+                    else:
+                        if ('sentence' in data):
+                            context = None
+                            sentence = data['sentence']
+                            if ('context' in data):
+                                if (data['context'] == ""): context = []
+                                else: context = json.loads(data['context'])
+
+                            response, context = model.generate_response(context, sentence)
+                            dictresp = {'success': 'true',
+                                        'response': response,
+                                        'context': json.dumps(context)}
+                            content = [json.dumps(dictresp), 200]
+                            time.sleep((float(1.0)/float(random.uniform(100,200)))*float(len(response)))
+                        else: content = [json.dumps({'success': 'false'}), 500]
+                else: content = [json.dumps({'success': 'false'}), 500]
+            except: content = [json.dumps({'success': 'false'}), 500]
+
+            origin = request.headers.get('Origin')
+            response = make_response(content[0], content[1])
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            return response
+
+        try:
+            if (ngrok):
+                run_with_ngrok(app)
+                app.run()
+            else: app.run(host="0.0.0.0")
+        except KeyboardInterrupt: app.shutdown()
+
+    def demo(self, data='dev', ngrok=False):
+        from telegram import Update
+        from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, CallbackContext)
+        # predict one dialog/ one turn at a time
+
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
-        with open('telegram.json') as fin:
-            api = json.load(fin)
-        logging.info("***** Running Demo *****")
-        with torch.no_grad():
-            updater = Updater(token=api['token'])
-            dispatcher = updater.dispatcher
 
-            def start(update, context):
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text="Hi. I am a Ze Carioca, how can I help you?")
+        webinterface = threading.Thread(target=self.web_interface, args=(ngrok,))
+        webinterface.start()
 
-            def restart(update, context):
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text="Hi. I am a Ze Carioca, how can I help you?")
-                context.user_data['msg'] = []
+        try:
+            with open('telegram.json') as fin:
+                api = json.load(fin)
+            logging.info("***** Running Demo *****")
+            with torch.no_grad():
+                updater = Updater(token=api['token'])
+                dispatcher = updater.dispatcher
 
-            def reply(update: Update, context: CallbackContext) -> str:
-                msg = '<sos_u>'+update.message.text.lower()+'<eos_u>'
-                msg = self.tokenizer.encode(msg, add_special_tokens=True)
-                if 'msg' not in context.user_data:
+                def start(update, context):
+                    context.bot.send_message(chat_id=update.effective_chat.id,
+                                             text="Hi. I am a Ze Carioca, how can I help you?")
+
+                def restart(update, context):
+                    context.bot.send_message(chat_id=update.effective_chat.id,
+                                             text="Hi. I am a Ze Carioca, how can I help you?")
                     context.user_data['msg'] = []
-                context.user_data['msg'] += msg
 
-                logging.info("[USER] "+self.tokenizer.decode(context.user_data['msg']))
-                context_length = len(context.user_data['msg'])
-                max_len=60
+                def reply(update: Update, context: CallbackContext) -> str:
+                    msg = update.message.text.lower()
+                    if 'msg' not in context.user_data: context.user_data['msg'] = []
+                    response, context = model.generate_response(context.user_data['msg'], msg, True)
 
-                outputs = self.model.generate(input_ids=torch.LongTensor(
-                    context.user_data['msg']).reshape(1,-1).to(self.device),
-                    max_length=context_length+max_len, temperature=0.7,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
+                    context.user_data['msg'] = context
+                    context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-                generated = outputs[0].cpu().numpy().tolist()
-                generated = generated[context_length:]
+                start_handler = CommandHandler('start', start)
+                dispatcher.add_handler(start_handler)
+                restart_handler = CommandHandler('restart', restart)
+                dispatcher.add_handler(restart_handler)
+                reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
+                dispatcher.add_handler(reply_handler)
 
-                context.user_data['msg'] += generated
-                decoded_output = self.tokenizer.decode(generated)
-                logging.info("[SYSTEM] "+decoded_output)
-                decoded_output = decoded_output.split('<sos_r>')[-1]\
-                    .rstrip('<eos_r>')
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text=decoded_output)
+                try:
+                    updater.start_polling()
+                    updater.idle()
+                except KeyboardInterrupt: updater = None
+        except Exception as exception: logging.info(str(exception))
 
-            start_handler = CommandHandler('start', start)
-            dispatcher.add_handler(start_handler)
-            restart_handler = CommandHandler('restart', restart)
-            dispatcher.add_handler(restart_handler)
-            reply_handler = MessageHandler(Filters.text & (~Filters.command), reply)
-            dispatcher.add_handler(reply_handler)
-
-            updater.start_polling()
-            updater.idle()
+        try:
+            while (webinterface.is_alive()): time.sleep(0.1)
+            webinterface = None
+        except KeyboardInterrupt:
+            webinterface = None
 
 
     def validate(self, data='dev', do_test=False):
@@ -765,6 +835,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-mode')
     parser.add_argument('-cfg', nargs='*')
+    parser.add_argument('-ngrok')
     args = parser.parse_args()
 
     cfg.mode = args.mode
@@ -834,7 +905,7 @@ def main():
                             cfg.use_true_curr_bspn, cfg.use_true_curr_aspn, cfg.use_all_previous_context
                         ))
         if cfg.context_scheme == 'UBARU':
-            m.demo()
+            m.demo(ngrok=args.ngrok)
         else:
             raise NotImplemented("Not running for URURU.")
     else:  # test
