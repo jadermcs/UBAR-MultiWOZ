@@ -364,6 +364,7 @@ class Modal(object):
             self.save_model(epoch, tr_loss/(epoch_step+1))
 
     def save_model(self, epoch, loss):
+        logging.info('Saving LOSS:{:.3f}'.format(loss))
         save_path = os.path.join(
             cfg.exp_path, 'epoch{}_trloss{:.2f}_gpt2'.format(epoch+1, loss))
         if not os.path.exists(save_path):
