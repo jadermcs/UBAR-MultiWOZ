@@ -366,7 +366,7 @@ class Modal(object):
     def save_model(self, epoch, loss):
         logging.info('Saving LOSS:{:.3f}'.format(loss))
         save_path = os.path.join(
-            cfg.exp_path, 'epoch{}_trloss{:.2f}_gpt2'.format(epoch+1, loss))
+            cfg.exp_path, 'epoch{}_trloss{:.6f}_gpt2'.format(epoch+1, loss))
         if not os.path.exists(save_path):
             os.mkdir(save_path)
         logging.info('Saving model checkpoint to %s', save_path)

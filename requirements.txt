@@ -1,4 +1,4 @@
-torch==1.5
+torch==2.0
 spacy==3.0.5
 transformers==2.11
 python-telegram-bot==13.7
