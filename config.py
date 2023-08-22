@@ -36,7 +36,7 @@ class _Config:
         self.exp_no = ''
         self.seed = 11
         self.save_log = True # tensorboard 
-        self.evaluate_during_training = False # evaluate during training
+        self.evaluate_during_training = True# evaluate during training
         self.report_interval = 200 # 485 for bs 128
         self.max_nl_length = 60
         self.max_span_length = 30
