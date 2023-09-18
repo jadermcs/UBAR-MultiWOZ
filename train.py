@@ -251,6 +251,7 @@ class Modal(object):
         UBARU
         """
         all_batches = self.reader.get_batches('train')
+        valid_batches = self.reader.get_batches('valid')
         # compute num_training_steps in get_batches()
         optimizer, scheduler = self.get_optimizers()
 
@@ -286,6 +287,9 @@ class Modal(object):
             self.model.zero_grad()
 
             data_iterator = self.reader.get_nontranspose_data_iterator(
+                all_batches)
+
+            valid_iterator = self.reader.get_nontranspose_data_iterator(
                 all_batches)
 
             for batch_idx, dial_batch in enumerate(data_iterator):
@@ -359,14 +363,27 @@ class Modal(object):
                         raise exception
             logging.info('Train epoch time: {:.2f} min, epoch loss: {:.4f}'.format(
                 (time.time()-btm)/60, tr_loss))
+
+            valid_loss = 0.
+            for batch_idx, dial_batch in enumerate(valid_iterator):
+                inputs = self.reader.convert_batch_session(dial_batch)
+                self.model.eval()
+                inputs = self.add_torch_input(inputs)
+                # loss
+                with torch.no_grad():
+                    outputs = self.model(inputs['contexts_tensor'])
+                # outputs = self.model(inputs['contexts_tensor']) # debugging with GPT2Model
+                loss = self.calculate_loss_and_accuracy(
+                    outputs, labels=inputs['contexts_tensor'])
+                valid_loss += loss.item()
             # save model after every epoch
             # if epoch > 10 or tr_loss/epoch_step < 1:
-            self.save_model(epoch, tr_loss/(epoch_step+1))
+            self.save_model(epoch, valid_loss)
 
     def save_model(self, epoch, loss):
         logging.info('Saving LOSS:{:.3f}'.format(loss))
         save_path = os.path.join(
-            cfg.exp_path, 'epoch{}_trloss{:.6f}_gpt2'.format(epoch+1, loss))
+            cfg.exp_path, 'epoch{}_loss{:.6f}_gpt2'.format(epoch+1, loss))
         if not os.path.exists(save_path):
             os.mkdir(save_path)
         logging.info('Saving model checkpoint to %s', save_path)
