@@ -43,7 +43,7 @@ class _Config:
         self.truncated = False
 
         # training settings
-        self.lr = 1e-4
+        self.lr = 1e-5
         self.warmup_steps = -1 
         self.weight_decay = 0.0 
         self.gradient_accumulation_steps = 16
