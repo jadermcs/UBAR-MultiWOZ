@@ -46,8 +46,8 @@ class _Config:
         self.lr = 1e-5
         self.warmup_steps = -1 
         self.weight_decay = 0.0 
-        self.gradient_accumulation_steps = 16
-        self.batch_size = 2
+        self.gradient_accumulation_steps = 4
+        self.batch_size = 8
 
         self.label_smoothing = .0
         self.lr_decay = 0.5
