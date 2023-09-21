@@ -251,7 +251,7 @@ class Modal(object):
         UBARU
         """
         all_batches = self.reader.get_batches('train')
-        valid_batches = self.reader.get_batches('valid')
+        valid_batches = self.reader.get_batches('dev')
         # compute num_training_steps in get_batches()
         optimizer, scheduler = self.get_optimizers()
 
@@ -290,7 +290,7 @@ class Modal(object):
                 all_batches)
 
             valid_iterator = self.reader.get_nontranspose_data_iterator(
-                all_batches)
+                valid_batches)
 
             for batch_idx, dial_batch in enumerate(data_iterator):
                 inputs = self.reader.convert_batch_session(dial_batch)
