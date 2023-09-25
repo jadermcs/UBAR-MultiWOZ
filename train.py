@@ -608,9 +608,16 @@ class Modal(object):
                         if not cfg.use_true_curr_aspn:
                             max_len = 80
 
-                        outputs = self.model.generate(input_ids=inputs['context_tensor'],
-                                                    max_length=context_length+max_len, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
+                        outputs = self.model.generate(
+                                input_ids=inputs['context_tensor'],
+                                no_repeat_ngram_size=4,
+                                do_sample=True,
+                                use_cache=True,
+                                top_p=0.95,
+                                top_k=50,
+                                max_length=context_length+max_len,
+                                pad_token_id=self.tokenizer.eos_token_id,
+                                eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
                                                     #   no_repeat_ngram_size=4
                         # turn['generated'] = self.tokenizer.decode(outputs[0])
 
