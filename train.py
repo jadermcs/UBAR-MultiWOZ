@@ -608,14 +608,14 @@ class Modal(object):
                         if not cfg.use_true_curr_aspn:
                             max_len = 80
 
+                        force_tokens = self.tokenizer("<eos_b> <sos_a> <eos_a> <sos_r> <eos_r>")[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
-                                no_repeat_ngram_size=4,
+                                force_word_ids=force_tokens,
                                 do_sample=True,
                                 use_cache=True,
                                 temperature=0.7,
                                 top_p=0.95,
-                                top_k=50,
                                 max_length=context_length+max_len,
                                 pad_token_id=self.tokenizer.eos_token_id,
                                 eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
