@@ -642,7 +642,7 @@ class Modal(object):
                                 use_cache=True,
                                 temperature=0.7,
                                 top_p=0.95,
-                                max_length=context_length+max_len,
+                                max_length=context_length+80,
                                 pad_token_id=self.tokenizer.eos_token_id,
                                 eos_token_id=self.tokenizer.encode(['<eos_b>'])[0])
                         generated_bs = outputs[0].cpu().numpy().tolist()
@@ -665,7 +665,7 @@ class Modal(object):
                                 use_cache=True,
                                 temperature=0.7,
                                 top_p=0.95,
-                                max_length=context_length+max_len,
+                                max_length=context_length+80,
                                 pad_token_id=self.tokenizer.eos_token_id,
                                 eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
                         generated_ar = outputs_db[0].cpu().numpy().tolist()
