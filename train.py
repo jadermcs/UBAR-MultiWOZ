@@ -611,7 +611,7 @@ class Modal(object):
                         force_tokens = self.tokenizer.encode(["<eos_b> <sos_a> <eos_a> <sos_r> <eos_r>"])[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
-                                force_word_ids=force_tokens,
+                                force_words_ids=force_tokens,
                                 do_sample=True,
                                 use_cache=True,
                                 temperature=0.7,
@@ -637,7 +637,7 @@ class Modal(object):
                         force_tokens = self.tokenizer.encode(["<eos_b>"])[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
-                                force_word_ids=force_tokens,
+                                force_words_ids=force_tokens,
                                 do_sample=True,
                                 use_cache=True,
                                 temperature=0.7,
@@ -660,7 +660,7 @@ class Modal(object):
                         force_tokens = self.tokenizer.encode(["<sos_a> <eos_a> <sos_r> <eos_r>"])[0]
                         outputs_db = self.model.generate(
                                 input_ids=inputs['context_tensor'],
-                                force_word_ids=force_tokens,
+                                force_words_ids=force_tokens,
                                 do_sample=True,
                                 use_cache=True,
                                 temperature=0.7,
