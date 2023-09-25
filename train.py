@@ -608,7 +608,7 @@ class Modal(object):
                         if not cfg.use_true_curr_aspn:
                             max_len = 80
 
-                        force_tokens = self.tokenizer("<eos_b> <sos_a> <eos_a> <sos_r> <eos_r>")[0]
+                        force_tokens = self.tokenizer.encode(["<eos_b> <sos_a> <eos_a> <sos_r> <eos_r>"])[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
                                 force_word_ids=force_tokens,
@@ -634,7 +634,7 @@ class Modal(object):
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
 
                     else: # predict bspn, access db, then generate act and resp
-                        force_tokens = self.tokenizer("<eos_b>")[0]
+                        force_tokens = self.tokenizer.encode(["<eos_b>"])[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
                                 force_word_ids=force_tokens,
@@ -657,7 +657,7 @@ class Modal(object):
                             db = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize('<sos_db> '+ db_result + ' <eos_db>')) + self.tokenizer.encode(['<sos_a>'])
                         inputs['context_tensor_db'] = torch.tensor([inputs['context'][:-1] + bspn_gen + db]).to(self.device)
                         context_length = len(inputs['context_tensor_db'][0])
-                        force_tokens = self.tokenizer("<sos_a> <eos_a> <sos_r> <eos_r>")[0]
+                        force_tokens = self.tokenizer.encode(["<sos_a> <eos_a> <sos_r> <eos_r>"])[0]
                         outputs_db = self.model.generate(
                                 input_ids=inputs['context_tensor'],
                                 force_word_ids=force_tokens,
