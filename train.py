@@ -608,8 +608,6 @@ class Modal(object):
                         if not cfg.use_true_curr_aspn:
                             max_len = 80
 
-                        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA===================================")
-
                         force_tokens = self.tokenizer("<eos_b> <sos_a> <eos_a> <sos_r> <eos_r>")[0]
                         outputs = self.model.generate(
                                 input_ids=inputs['context_tensor'],
@@ -636,9 +634,17 @@ class Modal(object):
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
 
                     else: # predict bspn, access db, then generate act and resp
-                        outputs = self.model.generate(input_ids=inputs['context_tensor'],
-                                                    max_length=context_length+60, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_b>'])[0])
+                        force_tokens = self.tokenizer("<eos_b>")[0]
+                        outputs = self.model.generate(
+                                input_ids=inputs['context_tensor'],
+                                force_word_ids=force_tokens,
+                                do_sample=True,
+                                use_cache=True,
+                                temperature=0.7,
+                                top_p=0.95,
+                                max_length=context_length+max_len,
+                                pad_token_id=self.tokenizer.eos_token_id,
+                                eos_token_id=self.tokenizer.encode(['<eos_b>'])[0])
                         generated_bs = outputs[0].cpu().numpy().tolist()
                         # generated_bs = generated_bs[context_length-1:]
                         bspn_gen = self.decode_generated_bspn(generated_bs[context_length-1:])
@@ -651,9 +657,17 @@ class Modal(object):
                             db = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize('<sos_db> '+ db_result + ' <eos_db>')) + self.tokenizer.encode(['<sos_a>'])
                         inputs['context_tensor_db'] = torch.tensor([inputs['context'][:-1] + bspn_gen + db]).to(self.device)
                         context_length = len(inputs['context_tensor_db'][0])
-                        outputs_db = self.model.generate(input_ids=inputs['context_tensor_db'],
-                                                    max_length=context_length+80, temperature=0.7, # top_p=0.9, num_beams=4,
-                                                    pad_token_id=self.tokenizer.eos_token_id, eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
+                        force_tokens = self.tokenizer("<sos_a> <eos_a> <sos_r> <eos_r>")[0]
+                        outputs_db = self.model.generate(
+                                input_ids=inputs['context_tensor'],
+                                force_word_ids=force_tokens,
+                                do_sample=True,
+                                use_cache=True,
+                                temperature=0.7,
+                                top_p=0.95,
+                                max_length=context_length+max_len,
+                                pad_token_id=self.tokenizer.eos_token_id,
+                                eos_token_id=self.tokenizer.encode(['<eos_r>'])[0])
                         generated_ar = outputs_db[0].cpu().numpy().tolist()
                         generated_ar = generated_ar[context_length-1:]
                         try:
