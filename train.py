@@ -613,6 +613,7 @@ class Modal(object):
                                 no_repeat_ngram_size=4,
                                 do_sample=True,
                                 use_cache=True,
+                                temperature=0.7,
                                 top_p=0.95,
                                 top_k=50,
                                 max_length=context_length+max_len,
