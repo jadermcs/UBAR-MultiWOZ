@@ -1,10 +1,10 @@
-python train.py -mode train -cfg gpt_path=models/distilgpt2/ta_encode lr=1e-4 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_encode
+python train.py -mode train -cfg gpt_path=models/gpt2-large/ta_encode lr=1e-5 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_encode
 echo "done with distill encode"
-python train.py -mode train -cfg gpt_path=distilgpt2 lr=1e-4 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model
+python train.py -mode train -cfg gpt_path=gpt2-large lr=1e-5 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model
 echo "done with distill no curriculum"
-python train.py -mode train -cfg gpt_path=models/distilgpt2/ta_noencode lr=1e-4 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_noencode
+python train.py -mode train -cfg gpt_path=models/gpt2-large/ta_noencode lr=1e-5 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_noencode
 echo "done with distill no encode"
-python train.py -mode train -cfg gpt_path=models/distilgpt2/ta_encode_nolabel lr=1e-4 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_encode_nolabel
+python train.py -mode train -cfg gpt_path=models/gpt2-large/ta_encode_nolabel lr=1e-5 warmup_steps=2000 gradient_accumulation_steps=8 batch_size=4 epoch_num=60 exp_no=best_model_encode_nolabel
 echo "done with distill encode no label"
 
 echo "finished"
