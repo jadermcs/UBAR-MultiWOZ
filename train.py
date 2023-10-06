@@ -38,7 +38,7 @@ class Modal(object):
         self.reader = MultiWozReader(self.tokenizer)
 
         # create model: gpt2
-        self.model = GPT2LMHeadModel.from_pretrained(cfg.gpt_path, fp16=True)
+        self.model = GPT2LMHeadModel.from_pretrained(cfg.gpt_path, torch_dtype=torch.float16)
         if cfg.mode == 'train':
             self.model.resize_token_embeddings(len(self.tokenizer))
         self.model.to(self.device)  # single gpu
